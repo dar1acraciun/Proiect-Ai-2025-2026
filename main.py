@@ -1,4 +1,3 @@
-import time
 from utils.io_utils import generate_question
 from utils.timing import time_function
 import algorithms.uninformed as uninformed
@@ -7,7 +6,7 @@ from problems.n_queens import NQueensProblem
 from problems.hanoi import GeneralizedHanoi
 from problems.graph_coloring import GraphColoringProblem
 from problems.knights_tour import KnightsTourProblem
-import json
+import random
 
 # mapping nume algoritm -> funcție
 ALGO_FUNCS = {
@@ -40,7 +39,6 @@ def choose_problem_and_instance(problem_name: str):
         edges = int(input("Număr de muchii: "))
         # generați graf simplu random
         graph = {i:set() for i in range(nodes)}
-        import random
         attempts = 0
         while attempts < edges:
             a,b = random.sample(range(nodes),2)
@@ -82,12 +80,7 @@ def main():
     valid_times = {k:v for k,v in times.items() if v != float('inf')}
     best = min(valid_times, key=valid_times.get) if valid_times else None
 
-    print("\nTimpuri de execuție (sec):")
-    for k,v in times.items():
-        s = f"{v:.4f}" if v != float('inf') else "N/A"
-        print(f" - {k:15s}: {s}")
 
-    print(f"\nAlgoritmul cu cel mai mic timp: {best}")
 
     print("\nAlege algoritmul (scrie exact numele) pe care crezi că e cel mai potrivit:")
     for name in ALGO_LIST:
@@ -98,10 +91,42 @@ def main():
         print("Algoritm invalid. Terminat.")
         return
 
+    finite_values = [v for v in times.values() if v != float('inf')]
+    best_time = min(finite_values)
+    worst_time = max(finite_values)
+
     if user_choice == best:
-        print("✅ Corect! Ai ales alg. cu cel mai mic timp.")
+        print("✅ Corect! Ai ales alg. cu cel mai mic timp. (Scorul tău: 100.00%)")
     else:
-        print(f"❌ Incorect. Ai ales {user_choice}, dar cel mai rapid a fost {best} cu {times[best]:.4f}s.")
+        user_time = times[user_choice]
+        if user_time == float('inf'):
+            user_score = "N/A"
+        elif best_time == worst_time:
+            user_score = "100.00%"
+        else:
+            user_score = f"{100 * (worst_time - user_time) / (worst_time - best_time):.2f}%"
+
+        print(f"❌ Incorect. Ai ales {user_choice}, dar cel mai rapid a fost {best} cu {times[best]:.10f}s. (Scorul tău: {user_score})")
+
+    print("\nTimpuri de execuție (sec):")
+
+    # inf last
+    sorted_times = sorted(times.items(), key=lambda kv: (kv[1] == float('inf'), kv[1]))
+
+    for k, v in sorted_times:
+        if v == float('inf'):
+            s = "N/A"
+            score = "N/A"
+        else:
+            if best_time == worst_time:
+                norm = 100.0
+            else:
+                norm = 100 * (worst_time - v) / (worst_time - best_time)
+            s = f"{v:.10f}"
+            score = f"{norm:6.2f}%"
+
+        print(f" - {k:<25s}: {s:>15s} | Scor: {score:>7s}")
+
 
 if __name__ == "__main__":
     main()
