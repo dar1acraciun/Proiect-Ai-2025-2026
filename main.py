@@ -68,13 +68,54 @@ def choose_problem_and_instance(problem_name: str, prefill: bool = False, prefil
 
 def benchmark_all_algos(problem):
     results = {}
+    # per-algorithm timeout (seconds) to avoid extremely long runs on hard instances
+    # If an algorithm takes longer than this, record it as N/A and continue.
+    per_algo_timeout = 30.0
+    # per-algorithm node/step caps for algorithms that accept these parameters
+    node_cap = 10000
+    step_cap = 5000
+    import inspect
+
     for name, func in ALGO_FUNCS.items():
-        # unele funcții (bidirectional) sunt generice și pot fi None/nu aplicabile -> tratăm erorile
         try:
-            # timpăm funcția (un timp limit? nu implementăm timeout here; doar măsurăm)
-            _, t = time_function(func, problem)
+            if func is None:
+                results[name] = float('inf')
+                continue
+
+            sig = None
+            try:
+                sig = inspect.signature(func)
+            except Exception:
+                sig = None
+
+            # If the function accepts a max_nodes or max_steps parameter, call it directly
+            # with conservative caps (avoids pickling/trampoline issues and enforces limits at algorithm level).
+            if sig and 'max_nodes' in sig.parameters:
+                import time as _time
+                t0 = _time.perf_counter()
+                try:
+                    res = func(problem, max_nodes=node_cap)
+                except TypeError:
+                    # some implementations may have different argument order — try as keyword failed
+                    res = func(problem)
+                t1 = _time.perf_counter()
+                results[name] = t1 - t0
+                continue
+            if sig and 'max_steps' in sig.parameters:
+                import time as _time
+                t0 = _time.perf_counter()
+                try:
+                    res = func(problem, max_steps=step_cap)
+                except TypeError:
+                    res = func(problem)
+                t1 = _time.perf_counter()
+                results[name] = t1 - t0
+                continue
+
+            # otherwise fallback to the timeout-based runner which uses multiprocessing when possible
+            _, t = time_function(func, problem, timeout=per_algo_timeout)
             results[name] = t
-        except Exception as e:
+        except Exception:
             results[name] = float('inf')
     return results
 
@@ -98,14 +139,64 @@ def main():
         lvl = pct / 100.0
         print(f"Aplic prefill automat nivel {int(pct)}%")
         problem = choose_problem_and_instance(problem_name, prefill=True, prefill_level=lvl)
+        # If the problem supports manual editing of the prefill preview, offer to let the user modify it.
+        try:
+            pre = getattr(problem, "prefilled", None)
+            if pre is not None:
+                print("Prefill aplicat (preview):", pre)
+                edit = input("Dorești să editezi manual preview-ul? (y/N): ").strip().lower()
+                if edit == 'y':
+                    while True:
+                        raw = input("Introdu pozițiile discurilor separate prin virgula (ex: 2,2,2,1,...). Poți da mai puține valori; restul vor fi completate cu 1: ").strip()
+                        if not raw:
+                            print("Input gol — renunț la edit.")
+                            break
+                        try:
+                            parts = [int(x.strip()) for x in raw.split(',') if x.strip() != '']
+                        except Exception:
+                            print("Format invalid — încearcă din nou.")
+                            continue
+                        # attempt to apply prefill; prefill will validate ranges and pad if needed
+                        try:
+                            problem.prefill(parts)
+                        except Exception as e:
+                            print(f"Prefill invalid: {e}")
+                            cont = input("Reîncerci? (y/N): ").strip().lower()
+                            if cont == 'y':
+                                continue
+                            else:
+                                break
+                        # perform stacking check: build towers and ensure ordering
+                        disks = getattr(problem, 'prefilled')
+                        pegs_count = problem.num_towers
+                        towers = {i: [] for i in range(1, pegs_count + 1)}
+                        for disk_num, tower in enumerate(disks, start=1):
+                            towers[tower].append(disk_num)
+                        bad = False
+                        for t, lst in towers.items():
+                            if lst != sorted(lst):
+                                print(f"Problema: pe peg {t} ordinea discurilor nu este validă: {lst}")
+                                bad = True
+                        if bad:
+                            cont = input("Prefill generat nu e legal. Reîncerci editarea? (y/N): ").strip().lower()
+                            if cont == 'y':
+                                continue
+                            else:
+                                # revert to earlier preview
+                                problem.prefill(pre)
+                                break
+                        # accepted
+                        print("Prefill actualizat (preview):", problem.prefilled)
+                        break
+        except Exception:
+            pass
     else:
         problem = choose_problem_and_instance(problem_name, prefill=False, prefill_level=0.0)
-
-    # show if a prefilled state was applied (if problem supports it)
+    # if no manual edit path above printed preview, attempt to show any prefill applied
     try:
-        pre = getattr(problem, "prefilled", None)
-        if pre is not None:
-            print("Prefill aplicat (preview):", pre)
+        pre2 = getattr(problem, "prefilled", None)
+        if pre2 is not None:
+            print("Prefill aplicat (preview):", pre2)
     except Exception:
         pass
 # ...existing code...

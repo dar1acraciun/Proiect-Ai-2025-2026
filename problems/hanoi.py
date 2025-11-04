@@ -7,20 +7,36 @@ from problems.base_problem import Problem
 # Disks are numbered 1..m (1 = smallest, m = largest).
 
 class GeneralizedHanoi(Problem):
-    def __init__(self, num_towers: int, num_disks: int, target_tower: int = 2):
+    def __init__(self, num_towers: int, num_disks: int, target_tower: int = 2, initial_positions: Tuple[int, ...] = None):
         assert num_towers >= 3
         assert 1 <= target_tower <= num_towers
         self.num_towers = num_towers
         self.num_disks = num_disks
         self.target_tower = target_tower
+        # initial_positions, if provided, should be a sequence of length num_disks with values 1..num_towers
+        if initial_positions is not None:
+            if len(initial_positions) != num_disks:
+                raise ValueError("initial_positions length must equal num_disks")
+            if not all(1 <= p <= num_towers for p in initial_positions):
+                raise ValueError("initial_positions entries must be between 1 and num_towers (inclusive)")
+            self._initial_positions = tuple(int(p) for p in initial_positions)
+        else:
+            self._initial_positions = None
 
     def initial_state(self) -> Tuple[int, ...]:
-        # all disks start on tower 1
-        # if a prefilled state was set, prefer that
+        # Prefer an explicit prefill if present (interactive prefill flow stores into self.prefilled)
         if getattr(self, "prefilled", None) is not None:
-            # expect prefilled as list/tuple of disk positions (1-based)
             st = list(self.prefilled)
+            # ensure length equals num_disks (prefill method pads if needed)
+            if len(st) != self.num_disks:
+                st = (st + [1] * self.num_disks)[: self.num_disks]
             return tuple([self.num_towers] + st)
+
+        # If an explicit initial mapping was provided via constructor, use it.
+        if self._initial_positions is not None:
+            return tuple([self.num_towers] + list(self._initial_positions))
+
+        # Default: all disks start on tower 1
         return tuple([self.num_towers] + [1] * self.num_disks)
 
     def is_goal(self, state: Tuple[int, ...]) -> bool:
