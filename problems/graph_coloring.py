@@ -12,8 +12,9 @@ class GraphColoringProblem(Problem):
         self.nodes = list(graph.keys())
         self.prefilled = None
 
-    def initial_state(self) -> Dict[int,int]:
-        return {}  # niciun nod colorat
+    def initial_state(self) -> Tuple[int, ...]:
+    # -1 means uncolored
+        return tuple([-1 for _ in self.nodes])
 
     def is_goal(self, state: Dict[int,int]) -> bool:
         return len(state) == len(self.nodes)
@@ -24,17 +25,25 @@ class GraphColoringProblem(Problem):
                 return False
         return True
 
-    def successors(self, state: Dict[int,int]) -> Iterable[Tuple[Dict[int,int], float]]:
-        # aleg următorul nod necolorat (deterministic)
-        uncolored = [n for n in self.nodes if n not in state]
-        if not uncolored:
-            return
-        node = uncolored[0]
-        for c in range(self.colors):
-            if self.valid_assignment(state, node, c):
-                new_state = state.copy()
-                new_state[node] = c
-                yield new_state, 1.0
+    def successors(self, state: Tuple[int, ...]) -> Iterable[Tuple[Tuple[int, ...], float]]:
+    # find first uncolored node
+        try:
+            node_idx = state.index(-1)
+        except ValueError:
+            return  # all nodes colored
+        for color in range(self.colors):
+            # check validity
+            node = self.nodes[node_idx]
+            valid = True
+            for nb in self.graph[node]:
+                nb_idx = self.nodes.index(nb)
+                if state[nb_idx] == color:
+                    valid = False
+                    break
+            if valid:
+                new_state = list(state)
+                new_state[node_idx] = color
+                yield tuple(new_state), 1.0
 
     def heuristic(self, state: Dict[int,int]) -> float:
         # heuristic: -numarul de noduri colorate

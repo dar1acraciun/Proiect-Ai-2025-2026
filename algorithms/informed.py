@@ -3,6 +3,13 @@ import random
 import math
 from typing import Any
 
+def state_key(state):
+    if isinstance(state, list):
+        return tuple(state)          # list of positions → hashable tuple
+    elif isinstance(state, dict):
+        return tuple(sorted(state.items()))  # dict → sorted tuple of items
+    return state  # already hashable
+
 def greedy(problem, max_nodes=100000):
     start = problem.initial_state()
     pq = [(problem.heuristic(start), start)]
@@ -82,27 +89,31 @@ def beam_search(problem, k=3, max_iters=1000):
         beam = candidates[:k]
     return None
 
-def a_star(problem, max_nodes=100000):
+def a_star(problem, max_nodes=100_000):
     start = problem.initial_state()
     came_from = {}
-    d = {repr(start): 0.0}
-    f = {repr(start): problem.heuristic(start)}
-    pq = [(f[repr(start)], start)]
+    d = {state_key(start): 0.0}
+    f = {state_key(start): problem.heuristic(start)}
+    pq = [(f[state_key(start)], start)]
     visited = set()
+
     while pq:
         _, state = heapq.heappop(pq)
-        key = repr(state)
-        if key in visited:
+        k = state_key(state)
+        if k in visited:
             continue
-        visited.add(key)
+        visited.add(k)
+
         if problem.is_goal(state):
             return state
+
         for neigh, cost in problem.successors(state):
-            nk = repr(neigh)
-            nd = d[key] + cost
+            nk = state_key(neigh)
+            nd = d[k] + cost
             if nk not in d or nd < d[nk]:
                 d[nk] = nd
                 f[nk] = nd + problem.heuristic(neigh)
                 came_from[nk] = state
                 heapq.heappush(pq, (f[nk], neigh))
+
     return None

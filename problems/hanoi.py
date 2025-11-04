@@ -46,25 +46,27 @@ class GeneralizedHanoi(Problem):
 
     def successors(self, state: Tuple[int, ...]) -> Iterable[Tuple[Tuple[int, ...], float]]:
         n = state[0]
-        towers = {i: [] for i in range(1, n + 1)}
         disks = state[1:]
+        towers = {i: [] for i in range(1, n + 1)}
 
-        # build towers content (top = smallest disk last in list)
+        # Build towers with top disk first (smallest disk on top)
         for disk_num, tower in enumerate(disks, start=1):
             towers[tower].append(disk_num)
+        for t in towers.values():
+         t.sort()  # smallest disk first = top of tower
 
-        # for each tower with disks, move top disk to another tower if legal
-        for i in range(1, n + 1):
-            if not towers[i]:
+        # Generate legal moves
+        for from_peg in range(1, n + 1):
+            if not towers[from_peg]:
                 continue
-            moving_disk = towers[i][0]  # smallest disk on that tower (since appended in order)
-            for j in range(1, n + 1):
-                if i == j:
+            moving_disk = towers[from_peg][0]  # top disk
+            for to_peg in range(1, n + 1):
+                if from_peg == to_peg:
                     continue
-                if not towers[j] or moving_disk < towers[j][0]:  # legal move
+                if not towers[to_peg] or moving_disk < towers[to_peg][0]:
                     new_disks = list(disks)
-                    new_disks[moving_disk - 1] = j
-                    yield tuple([n] + new_disks), 1.0
+                    new_disks[moving_disk - 1] = to_peg
+                    yield (tuple([n] + new_disks), 1.0)
 
     def heuristic(self, state: Tuple[int, ...]) -> float:
         # simple heuristic: number of disks not on target tower

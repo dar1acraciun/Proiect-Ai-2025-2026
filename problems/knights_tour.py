@@ -14,7 +14,7 @@ class KnightsTourProblem(Problem):
         self.prefilled = None
 
     def initial_state(self):
-        return [self.start]  # path: list of positions, first is start
+        return (self.start,)  # path: list of positions, first is start
 
     def is_goal(self, state: List[tuple]) -> bool:
         return len(state) == self.total
@@ -28,7 +28,8 @@ class KnightsTourProblem(Problem):
         for dr,dc in self.MOVES:
             nr, nc = r+dr, c+dc
             if self.in_bounds(nr,nc) and (nr,nc) not in visited:
-                yield state + [(nr,nc)], 1.0
+                yield tuple(state + [(nr, nc)]), 1.0
+
 
     def heuristic(self, state: List[tuple]) -> float:
         # Warnsdorff-like: prefer states with more visited

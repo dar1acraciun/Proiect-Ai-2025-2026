@@ -7,6 +7,8 @@ from problems.hanoi import GeneralizedHanoi
 from problems.graph_coloring import GraphColoringProblem
 from problems.knights_tour import KnightsTourProblem
 import random
+import time
+import inspect
 
 # mapping nume algoritm -> funcție
 ALGO_FUNCS = {
@@ -30,15 +32,37 @@ def choose_problem_and_instance(problem_name: str, prefill: bool = False, prefil
     # construct problem object from user params
     if problem_name == "N-Queens":
         n = int(input("Introduceți dimensiunea tablei (n, ex 8): "))
+        if n > 12:
+            print("Atenție: n mare poate duce la timpi mari de calcul pentru unele algoritmi. Voi folosi n=12.")
+            n=12
         prob = NQueensProblem(n)
     elif problem_name == "Generalized Hanoi":
         pegs = int(input("Număr de tije (>=3): "))
+        if pegs>5:
+            print("Atenție: număr mare de tije poate duce la timpi mari de calcul pentru unele algoritmi. Voi folosi 5 tije.")
+            pegs=5
         discs = int(input("Număr de discuri: "))
+        if discs>6:
+            print("Atenție: număr mare de discuri poate duce la timpi mari de calcul pentru unele algoritmi. Voi folosi 6 discuri.")
+            discs=6
         target = int(input(f"Peg țintă (1..{pegs}) default 2: ") or "2")
+        if not (1 <= target <= pegs):
+            print(f"Peg țintă invalidă, folosesc 2.")
+            target = 2
         prob = GeneralizedHanoi(pegs, discs, target)
     elif problem_name == "Graph Coloring":
         nodes = int(input("Număr de noduri: "))
+        if nodes>10:
+            print("Atenție: număr mare de noduri poate duce la timpi mari de calcul pentru unele algoritmi. Voi folosi 10 noduri.")
+            nodes=10
+        if nodes<2:
+            print("Număr minim de noduri este 2, setez la 2.")
+            nodes=2
         edges = int(input("Număr de muchii: "))
+        max_possible_edges = nodes * (nodes - 1) // 2
+        if edges > max_possible_edges:
+            print(f"Număr de muchii prea mare pentru {nodes} noduri, setez la maxim {max_possible_edges}.")
+            edges = max_possible_edges
         # generați graf simplu random
         graph = {i:set() for i in range(nodes)}
         attempts = 0
@@ -48,11 +72,20 @@ def choose_problem_and_instance(problem_name: str, prefill: bool = False, prefil
                 graph[a].add(b); graph[b].add(a)
                 attempts += 1
         colors = int(input("Număr de culori disponibile: "))
+        if colors>nodes:
+            print("Limitez numărul de culori la numărul de noduri.")
+            colors = nodes
         prob = GraphColoringProblem(graph, colors)
     elif problem_name == "Knight’s Tour":
         size = int(input("Dimensiune tablă (n): "))
+        if size>6:
+            print("Atenție: dimensiune mare a tablei poate duce la timpi mari de calcul pentru unele algoritmi. Voi folosi 6x6.")
+            size=6
         start_r = int(input("Start row (0-index): ") or "0")
         start_c = int(input("Start col (0-index): ") or "0")
+        if not (0 <= start_r < size and 0 <= start_c < size):
+            print("Poziție de start invalidă, folosesc (0,0).")
+            start_r, start_c = 0, 0
         prob = KnightsTourProblem(size, start=(start_r, start_c))
     else:
         raise ValueError("Problemă necunoscută")
@@ -68,15 +101,12 @@ def choose_problem_and_instance(problem_name: str, prefill: bool = False, prefil
 
 def benchmark_all_algos(problem):
     results = {}
-    # per-algorithm timeout (seconds) to avoid extremely long runs on hard instances
-    # If an algorithm takes longer than this, record it as N/A and continue.
-    per_algo_timeout = 30.0
-    # per-algorithm node/step caps for algorithms that accept these parameters
+    per_algo_timeout = 25.0  # seconds
     node_cap = 10000
     step_cap = 5000
-    import inspect
 
     for name, func in ALGO_FUNCS.items():
+        start_time = time.perf_counter()
         try:
             if func is None:
                 results[name] = float('inf')
@@ -88,36 +118,31 @@ def benchmark_all_algos(problem):
             except Exception:
                 sig = None
 
-            # If the function accepts a max_nodes or max_steps parameter, call it directly
-            # with conservative caps (avoids pickling/trampoline issues and enforces limits at algorithm level).
-            if sig and 'max_nodes' in sig.parameters:
-                import time as _time
-                t0 = _time.perf_counter()
-                try:
-                    res = func(problem, max_nodes=node_cap)
-                except TypeError:
-                    # some implementations may have different argument order — try as keyword failed
-                    res = func(problem)
-                t1 = _time.perf_counter()
-                results[name] = t1 - t0
-                continue
-            if sig and 'max_steps' in sig.parameters:
-                import time as _time
-                t0 = _time.perf_counter()
-                try:
-                    res = func(problem, max_steps=step_cap)
-                except TypeError:
-                    res = func(problem)
-                t1 = _time.perf_counter()
-                results[name] = t1 - t0
-                continue
+            try:
+                if sig and 'max_nodes' in sig.parameters:
+                    func(problem, max_nodes=node_cap)
+                elif sig and 'max_steps' in sig.parameters:
+                    func(problem, max_steps=step_cap)
+                else:
+                    func(problem)
 
-            # otherwise fallback to the timeout-based runner which uses multiprocessing when possible
-            _, t = time_function(func, problem, timeout=per_algo_timeout)
-            results[name] = t
-        except Exception:
+                elapsed = time.perf_counter() - start_time
+                if elapsed > per_algo_timeout:
+                    print(f"⏱️  {name} a depășit {per_algo_timeout}s — marchez ca N/A.")
+                    results[name] = float('inf')
+                else:
+                    results[name] = round(elapsed, 3)
+
+            except Exception as e:
+                print(f"❌  Eroare în {name}: {e}")
+                results[name] = float('inf')
+
+        except Exception as outer:
+            print(f"❌  Eroare externă la {name}: {outer}")
             results[name] = float('inf')
+
     return results
+
 
 def main():
     print("=== Generator întrebări & benchmark algoritmi ===")
