@@ -16,6 +16,11 @@ class GeneralizedHanoi(Problem):
 
     def initial_state(self) -> Tuple[int, ...]:
         # all disks start on tower 1
+        # if a prefilled state was set, prefer that
+        if getattr(self, "prefilled", None) is not None:
+            # expect prefilled as list/tuple of disk positions (1-based)
+            st = list(self.prefilled)
+            return tuple([self.num_towers] + st)
         return tuple([self.num_towers] + [1] * self.num_disks)
 
     def is_goal(self, state: Tuple[int, ...]) -> bool:
@@ -50,3 +55,93 @@ class GeneralizedHanoi(Problem):
         disks = state[1:]
         not_on_target = sum(1 for t in disks if t != self.target_tower)
         return -not_on_target
+
+    # ---- optional hooks: prefill, serialization, validation ----
+    def prefill(self, positions: Any) -> None:
+        """
+        Accepts either:
+         - full list/tuple of length num_disks with tower indices (1..num_towers)
+         - shorter list describing positions for the smallest k disks (disk 1..k)
+        Stores as self.prefilled (list of positions length num_disks).
+        """
+        if positions is None:
+            self.prefilled = None
+            return
+
+        # if it's a tuple state starting with num_towers, strip it
+        if isinstance(positions, (list, tuple)) and len(positions) == self.num_disks + 1:
+            # might be full state including leading num_towers
+            positions = list(positions)[1:]
+
+        if isinstance(positions, (list, tuple)):
+            pos_list = list(positions)
+            # if shorter than num_disks, pad remaining disks to tower 1
+            if len(pos_list) < self.num_disks:
+                pos_list = pos_list + [1] * (self.num_disks - len(pos_list))
+            # validate values
+            for p in pos_list:
+                if not (1 <= int(p) <= self.num_towers):
+                    raise ValueError(f"Disk position {p} out of range 1..{self.num_towers}")
+            self.prefilled = pos_list
+            return
+
+        # fallback store raw
+        self.prefilled = positions
+
+    def prefill_level(self, level: float) -> None:
+        """Place k = round(num_disks * level) of the smallest disks on the target tower.
+        The remaining disks are left on tower 1. This produces a mostly-complete but
+        still legal partial instance.
+        """
+        if level <= 0.0:
+            self.prefilled = None
+            return
+        k = max(1, round(self.num_disks * level))
+        # smallest k disks (1..k) moved to target, rest on tower 1
+        pos = [self.target_tower if i < k else 1 for i in range(self.num_disks)]
+        self.prefilled = pos
+
+    def set_state(self, state: Any) -> None:
+        # accept full state tuple or list of positions
+        if state is None:
+            self.prefilled = None
+            return
+        if isinstance(state, tuple) and len(state) == self.num_disks + 1:
+            self.prefilled = list(state[1:])
+        elif isinstance(state, (list, tuple)) and len(state) == self.num_disks:
+            self.prefilled = list(state)
+        else:
+            self.prefilled = state
+
+    def to_dict(self) -> dict:
+        return {"params": {"num_towers": self.num_towers, "num_disks": self.num_disks, "target_tower": self.target_tower},
+                "state": getattr(self, "prefilled", None)}
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        p = cls(int(d["params"]["num_towers"]), int(d["params"]["num_disks"]), int(d["params"].get("target_tower", 2)))
+        if d.get("state") is not None:
+            p.prefill(d["state"])
+        return p
+
+    def validate_solution(self, solution: Any) -> tuple[bool, str]:
+        """Validate a candidate state/solution. Accepts tuple state or list of positions."""
+        if solution is None:
+            return False, "Solution is empty"
+        # accept full tuple (n, positions...)
+        if isinstance(solution, tuple) and len(solution) == self.num_disks + 1:
+            positions = list(solution[1:])
+        elif isinstance(solution, (list, tuple)) and len(solution) == self.num_disks:
+            positions = list(solution)
+        else:
+            return False, f"Unsupported solution format or wrong length (expected {self.num_disks})"
+
+        for i, p in enumerate(positions, start=1):
+            try:
+                pv = int(p)
+            except Exception:
+                return False, f"Disk {i} has non-integer position {p}"
+            if not (1 <= pv <= self.num_towers):
+                return False, f"Disk {i} position {pv} out of bounds 1..{self.num_towers}"
+
+        return True, ""

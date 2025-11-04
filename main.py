@@ -25,15 +25,17 @@ ALGO_FUNCS = {
 
 ALGO_LIST = list(ALGO_FUNCS.keys())
 
-def choose_problem_and_instance(problem_name: str):
+
+def choose_problem_and_instance(problem_name: str, prefill: bool = False, prefill_level: float = 0.0):
+    # construct problem object from user params
     if problem_name == "N-Queens":
         n = int(input("Introduceți dimensiunea tablei (n, ex 8): "))
-        return NQueensProblem(n)
+        prob = NQueensProblem(n)
     elif problem_name == "Generalized Hanoi":
         pegs = int(input("Număr de tije (>=3): "))
         discs = int(input("Număr de discuri: "))
-        target = int(input(f"Peg țintă (0..{pegs-1}), default 1: ") or "1")
-        return GeneralizedHanoi(pegs, discs, target)
+        target = int(input(f"Peg țintă (1..{pegs}) default 2: ") or "2")
+        prob = GeneralizedHanoi(pegs, discs, target)
     elif problem_name == "Graph Coloring":
         nodes = int(input("Număr de noduri: "))
         edges = int(input("Număr de muchii: "))
@@ -46,14 +48,23 @@ def choose_problem_and_instance(problem_name: str):
                 graph[a].add(b); graph[b].add(a)
                 attempts += 1
         colors = int(input("Număr de culori disponibile: "))
-        return GraphColoringProblem(graph, colors)
+        prob = GraphColoringProblem(graph, colors)
     elif problem_name == "Knight’s Tour":
         size = int(input("Dimensiune tablă (n): "))
         start_r = int(input("Start row (0-index): ") or "0")
         start_c = int(input("Start col (0-index): ") or "0")
-        return KnightsTourProblem(size, start=(start_r, start_c))
+        prob = KnightsTourProblem(size, start=(start_r, start_c))
     else:
         raise ValueError("Problemă necunoscută")
+
+    # apply automatic prefill if requested
+    if prefill and hasattr(prob, "prefill_level"):
+        try:
+            prob.prefill_level(prefill_level)
+        except Exception as e:
+            print(f"Eroare la aplicare prefill: {e}")
+
+    return prob
 
 def benchmark_all_algos(problem):
     results = {}
@@ -72,7 +83,32 @@ def main():
     q, problem_name = generate_question()
     print("\nÎntrebare generată:")
     print(q)
-    problem = choose_problem_and_instance(problem_name)
+    choice = input("Generare instanță: [1] goală  [2] aproape completă validă (1/2) [1]: ").strip() or "1"
+    if choice == "2":
+        inp = input("Nivel prefill (0-100) default 90: ").strip()
+        if inp == "":
+            pct = 90.0
+        else:
+            try:
+                pct = float(inp)
+            except Exception:
+                print("Valoare invalidă pentru nivel; folosesc 90%")
+                pct = 90.0
+        pct = max(0.0, min(100.0, pct))
+        lvl = pct / 100.0
+        print(f"Aplic prefill automat nivel {int(pct)}%")
+        problem = choose_problem_and_instance(problem_name, prefill=True, prefill_level=lvl)
+    else:
+        problem = choose_problem_and_instance(problem_name, prefill=False, prefill_level=0.0)
+
+    # show if a prefilled state was applied (if problem supports it)
+    try:
+        pre = getattr(problem, "prefilled", None)
+        if pre is not None:
+            print("Prefill aplicat (preview):", pre)
+    except Exception:
+        pass
+# ...existing code...
     print("\nInstanță generată. Rulez benchmark pentru toți algoritmii (atenție: poate dura).")
 
     times = benchmark_all_algos(problem)
