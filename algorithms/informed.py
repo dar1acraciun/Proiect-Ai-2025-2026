@@ -7,11 +7,13 @@ def greedy(problem, max_nodes=100000):
     start = problem.initial_state()
     pq = [(problem.heuristic(start), start)]
     visited = set()
-    while pq:
+    nodes_explored = 0
+    while pq and nodes_explored < max_nodes:
         h, state = heapq.heappop(pq)
         if repr(state) in visited:
             continue
         visited.add(repr(state))
+        nodes_explored += 1
         if problem.is_goal(state):
             return state
         for neigh, _ in problem.successors(state):
@@ -59,12 +61,13 @@ def simulated_annealing(problem, max_steps=5000):
                 state = nxt
     return None
 
-def beam_search(problem, k=3, max_iters=1000):
+def beam_search(problem, k=3, max_iters=1000, max_nodes=100000):
     start = problem.initial_state()
     beam = [start]
     visited = set([repr(start)])
+    nodes_explored = 0
     for _ in range(max_iters):
-        if not beam:
+        if not beam or nodes_explored >= max_nodes:
             return None
         # check goal
         best = max(beam, key=lambda s: problem.heuristic(s))
@@ -77,6 +80,7 @@ def beam_search(problem, k=3, max_iters=1000):
                 if repr(neigh) not in visited:
                     visited.add(repr(neigh))
                     candidates.append(neigh)
+                    nodes_explored += 1
         # sort candidates by heuristic desc and keep top k
         candidates.sort(key=lambda s: problem.heuristic(s), reverse=True)
         beam = candidates[:k]

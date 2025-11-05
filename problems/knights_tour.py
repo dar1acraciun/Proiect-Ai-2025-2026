@@ -25,14 +25,57 @@ class KnightsTourProblem(Problem):
     def successors(self, state: List[tuple]) -> Iterable[Tuple[List[tuple], float]]:
         r,c = state[-1]
         visited = set(state)
+        
+        # Generate all possible next moves
+        possible_moves = []
         for dr,dc in self.MOVES:
             nr, nc = r+dr, c+dc
             if self.in_bounds(nr,nc) and (nr,nc) not in visited:
-                yield state + [(nr,nc)], 1.0
+                # Calculate accessibility of this move (Warnsdorff's metric)
+                onward_moves = 0
+                for dr2, dc2 in self.MOVES:
+                    nr2, nc2 = nr + dr2, nc + dc2
+                    if self.in_bounds(nr2, nc2) and (nr2, nc2) not in visited:
+                        onward_moves += 1
+                possible_moves.append((onward_moves, (nr, nc)))
+        
+        # Sort by Warnsdorff: prefer moves with fewer onward options (constrained squares first)
+        possible_moves.sort(key=lambda x: x[0])
+        
+        # Yield in sorted order (best moves first)
+        for _, (nr, nc) in possible_moves:
+            yield state + [(nr,nc)], 1.0
 
     def heuristic(self, state: List[tuple]) -> float:
-        # Warnsdorff-like: prefer states with more visited
-        return -len(state)
+        """
+        Warnsdorff's heuristic: prefer moves that lead to squares with fewer onward moves.
+        This massively prunes the search space for Knight's Tour.
+        
+        Returns negative count of unvisited squares reachable from current position.
+        (Negative because algorithms maximize heuristic.)
+        """
+        if len(state) == self.total:
+            return 0.0  # Goal state
+        
+        r, c = state[-1]
+        visited = set(state)
+        accessibility_sum = 0
+        
+        # For each reachable unvisited square, count how many moves it has
+        for dr, dc in self.MOVES:
+            nr, nc = r + dr, c + dc
+            if self.in_bounds(nr, nc) and (nr, nc) not in visited:
+                # Count how many moves are available from (nr, nc)
+                onward_moves = 0
+                for dr2, dc2 in self.MOVES:
+                    nr2, nc2 = nr + dr2, nc + dc2
+                    if self.in_bounds(nr2, nc2) and (nr2, nc2) not in visited and (nr2, nc2) != (r, c):
+                        onward_moves += 1
+                # Warnsdorff: prefer squares with fewer onward moves (constrained squares first)
+                accessibility_sum += onward_moves
+        
+        # Return negative so algorithms maximize (fewer onward moves = better state)
+        return -accessibility_sum
 
     # ---- optional hooks ----
     def prefill(self, path: Any) -> None:
