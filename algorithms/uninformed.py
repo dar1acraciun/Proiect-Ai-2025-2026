@@ -3,8 +3,6 @@ import heapq
 from typing import Any, Dict, Iterable, Tuple, List, Callable, Optional, Set
 import math
 
-# Algorithms implementate generic pentru Problem (folosesc metoda successors/is_goal/heuristic/distance)
-# Acceptă un obiect problem cu interfața din base_problem.
 
 def bfs(problem, max_nodes: int = 10_000):
     start = problem.initial_state()
