@@ -79,7 +79,3 @@ class MinimaxTreeProblem:
                 return 1
             return sum(rec(c) for c in node)
         return rec(self.root)
-
-    def validate_solution(self, sol):
-        """Stub for compatibility."""
-        return True, "Minimax tree validation stub."
