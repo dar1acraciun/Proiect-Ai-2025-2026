@@ -14,9 +14,8 @@ def generate_question():
     templates = load_templates()
     template = random.choice(templates)
     
-    # Check if this is the minimax question (doesn't have {problem_name} placeholder)
-    if "{problem_name}" not in template:
-        return template, "MinMax"
+    if "Alpha-Beta" in template:
+        return template.format(problem_name="MinMax"), "MinMax"
     
     problem = random.choice(PROBLEMS)
     return template.format(problem_name=problem), problem
