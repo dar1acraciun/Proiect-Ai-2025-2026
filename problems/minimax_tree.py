@@ -5,7 +5,6 @@ Node = Union[int, list]
 
 
 class MinimaxTreeProblem:
-
     def __init__(
         self,
         branching: int = 2,
@@ -27,41 +26,43 @@ class MinimaxTreeProblem:
         return [self._generate_node(depth - 1) for _ in range(num_children)]
 
     def run_minimax_alphabeta(self) -> Tuple[int, int]:
-
-        def max_value(node, alpha, beta) -> Tuple[int, int]:
-            if isinstance(node, int):
-                return node, 1
-            v = -10**18
-            total_visited = 0
-            for child in node:
-                child_val, child_vis = min_value(child, alpha, beta)
-                total_visited += child_vis
-                if child_val > v:
-                    v = child_val
-                if v >= beta:
-                    return v, total_visited
-                if v > alpha:
-                    alpha = v
-            return v, total_visited
-
-        def min_value(node, alpha, beta) -> Tuple[int, int]:
-            if isinstance(node, int):
-                return node, 1
-            v = 10**18
-            total_visited = 0
-            for child in node:
-                child_val, child_vis = max_value(child, alpha, beta)
-                total_visited += child_vis
-                if child_val < v:
-                    v = child_val
-                if v <= alpha:
-                    return v, total_visited
-                if v < beta:
-                    beta = v
-            return v, total_visited
-
-        root_val, leaves = max_value(self.root, -10**18, 10**18)
-        return root_val, leaves
+        leaves_evaluated = [0]
+        
+        def evaluate(node):
+            return node
+        
+        def is_terminal(node):
+            return isinstance(node, int)
+        
+        def get_children(node):
+            return node if isinstance(node, list) else []
+        
+        def alpha_beta_pruning(node, alpha, beta, maximizing_player):
+            if is_terminal(node):
+                leaves_evaluated[0] += 1
+                return evaluate(node)
+            
+            if maximizing_player:
+                max_eval = float('-inf')
+                for child in get_children(node):
+                    eval_val = alpha_beta_pruning(child, alpha, beta, False)
+                    max_eval = max(max_eval, eval_val)
+                    alpha = max(alpha, eval_val)
+                    if beta <= alpha:
+                        break  
+                return max_eval
+            else:
+                min_eval = float('inf')
+                for child in get_children(node):
+                    eval_val = alpha_beta_pruning(child, alpha, beta, True)
+                    min_eval = min(min_eval, eval_val)
+                    beta = min(beta, eval_val)
+                    if beta <= alpha:
+                        break  
+                return min_eval
+        
+        root_val = alpha_beta_pruning(self.root, float('-inf'), float('inf'), True)
+        return root_val, leaves_evaluated[0]
 
     def total_leaves(self) -> int:
         def rec(node):

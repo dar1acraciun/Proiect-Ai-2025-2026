@@ -30,7 +30,7 @@ def run_minimax_quiz():
 
 
 def _generate_random_tree() -> MinimaxTreeProblem:
-    max_leaves = int(input("Număr maxim de frunze per nod (default 2): ") or "2")
+    max_leaves = int(input("Număr maxim de frunze per nod ( >=2 default 2): ") or "2")
     max_leaves = max(2, max_leaves)  
     depth = int(input("Adâncime/nivele (default 3): ") or "3")
     low = int(input("Valoare frunză minimă (default -10): ") or "-10")
