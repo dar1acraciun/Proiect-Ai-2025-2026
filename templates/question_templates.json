@@ -2,5 +2,6 @@
   "Pentru problema {problem_name} și instanța generată, care este cea mai potrivită strategie de rezolvare?",
   "Dintre strategiile studiate, care ar fi mai eficientă pentru problema {problem_name}?",
   "Pentru instanța curentă a problemei {problem_name}, care algoritm de căutare ar oferi o soluție optimă?",
-  "Având în vedere problema {problem_name}, ce strategie din cele studiate alegeți pentru rezolvare și de ce?"
+  "Având în vedere problema {problem_name}, ce strategie din cele studiate alegeți pentru rezolvare și de ce?",
+  "Pentru arborele dat, care este valoarea de la rădăcină și câte noduri frunză vor fi evaluate aplicând MinMax cu Alpha-Beta?"
 ]
