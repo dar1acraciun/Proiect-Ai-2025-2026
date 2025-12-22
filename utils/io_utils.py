@@ -17,5 +17,8 @@ def generate_question():
     if "Alpha-Beta" in template:
         return template.format(problem_name="MinMax"), "MinMax"
     
+    if "Nash" in template:
+        return template.format(problem_name="Nash"), "Nash"
+    
     problem = random.choice(PROBLEMS)
     return template.format(problem_name=problem), problem

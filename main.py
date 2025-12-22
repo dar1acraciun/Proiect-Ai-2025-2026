@@ -6,6 +6,8 @@ from utils.algorithm_runner import run_benchmark_all_algorithms
 from problems.minimax_quiz import run_minimax_quiz
 import algorithms.uninformed as uninformed
 import algorithms.informed as informed
+from problems.nash_quiz import run_nash_quiz
+
 
 
 
@@ -35,6 +37,10 @@ def main():
     
     if problem_name == "MinMax":
         run_minimax_quiz()
+        return
+    
+    if problem_name == "Nash":
+        run_nash_quiz()
         return
     
     choice = input("Generare instanță: [1] goală  [2] aproape completă validă (1/2) [1]: ").strip() or "1"
