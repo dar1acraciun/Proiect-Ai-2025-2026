@@ -7,22 +7,33 @@ from problems.random_nash_generator import generate_balanced_nash_game
 # INPUT VALIDATION
 # ===============================
 
-def get_matrix_dimension(name: str, default: int = 2, min_v: int = 2, max_v: int = 5) -> int:
-    raw = input(f"Număr de {name} [{min_v}-{max_v}] (default {default}): ").strip()
-
+def get_int_input(prompt: str, default: int, min_v: int, max_v: int) -> int:
+    raw = input(prompt).strip()
     if raw == "":
         return default
-
     try:
-        value = int(raw)
-        if min_v <= value <= max_v:
-            return value
-        else:
-            print(f"Valoare invalidă. Folosesc {default}.")
-            return default
+        val = int(raw)
+        if min_v <= val <= max_v:
+            return val
     except ValueError:
-        print(f"Input invalid. Folosesc {default}.")
-        return default
+        pass
+    print(f"Valoare invalidă. Folosesc {default}.")
+    return default
+
+
+def get_difficulty() -> str:
+    print("\nAlege dificultatea:")
+    print("  1 - Ușor")
+    print("  2 - Mediu")
+    print("  3 - Greu")
+
+    choice = input("Opțiune (1/2/3) [2]: ").strip()
+
+    return {
+        "1": "easy",
+        "2": "medium",
+        "3": "hard"
+    }.get(choice, "medium")
 
 
 # ===============================
@@ -40,7 +51,7 @@ def print_matrix(matrix, rows, cols):
         line = f"{r:<12} "
         for j in range(len(cols)):
             u1, u2 = matrix[i][j]
-            line += f"({u1:>2},{u2:<2})".center(16)
+            line += f"({u1:>3},{u2:<3})".center(16)
         print(line)
 
 
@@ -62,24 +73,56 @@ def print_nash_results(equilibria, rows, cols, score, reason):
 
 
 # ===============================
+# DIFFICULTY SETTINGS
+# ===============================
+
+def difficulty_settings(diff: str):
+    if diff == "easy":
+        return dict(
+            rows=2,
+            cols=2,
+            payoff_min=-3,
+            payoff_max=3,
+            prob_nash=0.7
+        )
+    if diff == "hard":
+        return dict(
+            rows=get_int_input("Număr rânduri [3-5] (default 4): ", 4, 3, 5),
+            cols=get_int_input("Număr coloane [3-5] (default 4): ", 4, 3, 5),
+            payoff_min=-10,
+            payoff_max=10,
+            prob_nash=0.3
+        )
+    # medium (default)
+    return dict(
+        rows=get_int_input("Număr rânduri [2-3] (default 2): ", 2, 2, 3),
+        cols=get_int_input("Număr coloane [2-3] (default 2): ", 2, 2, 3),
+        payoff_min=-5,
+        payoff_max=5,
+        prob_nash=0.5
+    )
+
+
+# ===============================
 # QUIZ ENTRY POINT
 # ===============================
 
 def run_nash_quiz():
     print_header("Quiz: Echilibru Nash Pur")
 
-    # Ask user for matrix size
-    rows_count = get_matrix_dimension("rânduri")
-    cols_count = get_matrix_dimension("coloane")
+    difficulty = get_difficulty()
+    settings = difficulty_settings(difficulty)
 
-    # Generate balanced random game
     matrix, equilibria = generate_balanced_nash_game(
-        rows=rows_count,
-        cols=cols_count
+        rows=settings["rows"],
+        cols=settings["cols"],
+        payoff_min=settings["payoff_min"],
+        payoff_max=settings["payoff_max"],
+        prob_with_nash=settings["prob_nash"]
     )
 
-    rows = generate_strategy_names("R", rows_count)
-    cols = generate_strategy_names("C", cols_count)
+    rows = generate_strategy_names("R", settings["rows"])
+    cols = generate_strategy_names("C", settings["cols"])
 
     print_matrix(matrix, rows, cols)
 

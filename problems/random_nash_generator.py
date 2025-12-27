@@ -7,7 +7,11 @@ Payoff = Tuple[int, int]
 Matrix = List[List[Payoff]]
 
 
-def find_pure_nash(matrix: Matrix) -> list[tuple[int, int]]:
+# ===============================
+# PURE NASH DETECTION
+# ===============================
+
+def find_pure_nash(matrix: Matrix) -> List[Tuple[int, int]]:
     rows = len(matrix)
     cols = len(matrix[0])
     equilibria = []
@@ -25,11 +29,15 @@ def find_pure_nash(matrix: Matrix) -> list[tuple[int, int]]:
     return equilibria
 
 
+# ===============================
+# RANDOM MATRIX
+# ===============================
+
 def generate_random_matrix(
-    rows: int = 2,
-    cols: int = 2,
-    payoff_min: int = -5,
-    payoff_max: int = 5
+    rows: int,
+    cols: int,
+    payoff_min: int,
+    payoff_max: int
 ) -> Matrix:
     return [
         [
@@ -41,16 +49,21 @@ def generate_random_matrix(
     ]
 
 
+# ===============================
+# BALANCED GENERATORS
+# ===============================
+
 def generate_matrix_with_nash(
-    rows: int = 2,
-    cols: int = 2,
+    rows: int,
+    cols: int,
+    payoff_min: int,
+    payoff_max: int,
     max_tries: int = 10_000
-) -> tuple[Matrix, list[tuple[int, int]]]:
+) -> tuple[Matrix, List[Tuple[int, int]]]:
 
     for _ in range(max_tries):
-        m = generate_random_matrix(rows, cols)
+        m = generate_random_matrix(rows, cols, payoff_min, payoff_max)
         eq = find_pure_nash(m)
-
         if eq:
             return m, eq
 
@@ -58,44 +71,35 @@ def generate_matrix_with_nash(
 
 
 def generate_matrix_without_nash(
-    rows: int = 2,
-    cols: int = 2,
+    rows: int,
+    cols: int,
+    payoff_min: int,
+    payoff_max: int,
     max_tries: int = 10_000
 ) -> Matrix:
 
     for _ in range(max_tries):
-        m = generate_random_matrix(rows, cols)
-        eq = find_pure_nash(m)
-
-        if not eq:
+        m = generate_random_matrix(rows, cols, payoff_min, payoff_max)
+        if not find_pure_nash(m):
             return m
 
     raise RuntimeError("Nu am reușit să generez joc fără echilibru Nash.")
 
 
+# ===============================
+# PUBLIC API (USED BY QUIZ)
+# ===============================
 
 def generate_balanced_nash_game(
     rows: int = 2,
     cols: int = 2,
+    payoff_min: int = -5,
+    payoff_max: int = 5,
     prob_with_nash: float = 0.5
-) -> tuple[Matrix, list[tuple[int, int]]]:
+) -> tuple[Matrix, List[Tuple[int, int]]]:
 
     if random.random() < prob_with_nash:
-        return generate_matrix_with_nash(rows, cols)
+        return generate_matrix_with_nash(rows, cols, payoff_min, payoff_max)
     else:
-        m = generate_matrix_without_nash(rows, cols)
-        return m, []
-
-
-def pretty_print_matrix(matrix: Matrix):
-    print("\nMatrice payoff:")
-    for row in matrix:
-        print(" ".join(f"{cell!s:>8}" for cell in row))
-
-
-if __name__ == "__main__":
-    for _ in range(5):
-        m, eq = generate_balanced_nash_game()
-        pretty_print_matrix(m)
-        print("Echilibre Nash:", eq or "NU EXISTA")
-        print("-" * 40)
+        matrix = generate_matrix_without_nash(rows, cols, payoff_min, payoff_max)
+        return matrix, []
