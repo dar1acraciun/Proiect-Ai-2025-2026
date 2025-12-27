@@ -1,15 +1,9 @@
-# problems/random_nash_generator.py
-
 import random
 from typing import List, Tuple
 
 Payoff = Tuple[int, int]
 Matrix = List[List[Payoff]]
 
-
-# ===============================
-# PURE NASH DETECTION
-# ===============================
 
 def find_pure_nash(matrix: Matrix) -> List[Tuple[int, int]]:
     rows = len(matrix)
@@ -29,9 +23,6 @@ def find_pure_nash(matrix: Matrix) -> List[Tuple[int, int]]:
     return equilibria
 
 
-# ===============================
-# RANDOM MATRIX
-# ===============================
 
 def generate_random_matrix(
     rows: int,
@@ -48,10 +39,6 @@ def generate_random_matrix(
         for _ in range(rows)
     ]
 
-
-# ===============================
-# BALANCED GENERATORS
-# ===============================
 
 def generate_matrix_with_nash(
     rows: int,
@@ -86,9 +73,6 @@ def generate_matrix_without_nash(
     raise RuntimeError("Nu am reușit să generez joc fără echilibru Nash.")
 
 
-# ===============================
-# PUBLIC API (USED BY QUIZ)
-# ===============================
 
 def generate_balanced_nash_game(
     rows: int = 2,
