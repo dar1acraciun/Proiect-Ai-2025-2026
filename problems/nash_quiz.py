@@ -1,8 +1,33 @@
-from typing import List, Tuple
+from typing import List
 from utils.display import print_header
 from problems.random_nash_generator import generate_balanced_nash_game
 
 
+# ===============================
+# INPUT VALIDATION
+# ===============================
+
+def get_matrix_dimension(name: str, default: int = 2, min_v: int = 2, max_v: int = 5) -> int:
+    raw = input(f"Număr de {name} [{min_v}-{max_v}] (default {default}): ").strip()
+
+    if raw == "":
+        return default
+
+    try:
+        value = int(raw)
+        if min_v <= value <= max_v:
+            return value
+        else:
+            print(f"Valoare invalidă. Folosesc {default}.")
+            return default
+    except ValueError:
+        print(f"Input invalid. Folosesc {default}.")
+        return default
+
+
+# ===============================
+# HELPERS
+# ===============================
 
 def generate_strategy_names(prefix: str, count: int) -> List[str]:
     return [f"{prefix}{i+1}" for i in range(count)]
@@ -36,15 +61,25 @@ def print_nash_results(equilibria, rows, cols, score, reason):
     print("-" * 60)
 
 
+# ===============================
+# QUIZ ENTRY POINT
+# ===============================
 
 def run_nash_quiz():
     print_header("Quiz: Echilibru Nash Pur")
 
-    # Generate random game (balanced: with OR without Nash)
-    matrix, equilibria = generate_balanced_nash_game(rows=2, cols=2)
+    # Ask user for matrix size
+    rows_count = get_matrix_dimension("rânduri")
+    cols_count = get_matrix_dimension("coloane")
 
-    rows = generate_strategy_names("R", len(matrix))
-    cols = generate_strategy_names("C", len(matrix[0]))
+    # Generate balanced random game
+    matrix, equilibria = generate_balanced_nash_game(
+        rows=rows_count,
+        cols=cols_count
+    )
+
+    rows = generate_strategy_names("R", rows_count)
+    cols = generate_strategy_names("C", cols_count)
 
     print_matrix(matrix, rows, cols)
 
@@ -54,7 +89,7 @@ def run_nash_quiz():
     score = 0.0
     reason = ""
 
-    # 50% — existence check
+    # 50% — existence
     if (user_ans == 'y') == exists:
         score = 50.0
     else:
@@ -62,7 +97,7 @@ def run_nash_quiz():
         print_nash_results(equilibria, rows, cols, score, reason)
         return
 
-    # If Nash exists, ask for strategies
+    # If Nash exists, ask strategy
     if exists:
         print("\nIntrodu strategiile pentru echilibru:")
         print("Strategii Player 1:", ", ".join(rows))
