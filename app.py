@@ -6,6 +6,7 @@ from problems.n_queens import NQueensProblem
 from problems.hanoi import GeneralizedHanoi
 from problems.graph_coloring import GraphColoringProblem
 from problems.knights_tour import KnightsTourProblem
+from problems.csp import *
 import random
 
 ALGO_FUNCS = {
@@ -66,7 +67,7 @@ st.title("Generator întrebări & benchmark algoritmi — Web")
 
 with st.sidebar:
     st.header("Mod")
-    mode = st.selectbox("Alege modul", ["Probleme & Benchmark", "Quiz Minimax", "Quiz Nash"], index=0)
+    mode = st.selectbox("Alege modul", ["Probleme & Benchmark", "Quiz Minimax", "Quiz Nash", "BKT cu optimizari"], index=0)
     st.divider()
     if mode == "Probleme & Benchmark":
         st.subheader("Problemă")
@@ -117,6 +118,7 @@ with st.sidebar:
             cols_n = st.number_input("Coloane", min_value=3, max_value=5, value=4, step=1)
             payoff_min, payoff_max, prob_nash = -10, 10, 0.3
         gen_nash_btn = st.button("Generează joc")
+
 
 if "problem" not in st.session_state:
     st.session_state.problem = None
@@ -375,3 +377,155 @@ if mode == "Quiz Nash":
             else:
                 st.info("Nu există echilibru Nash pur.")
 
+
+# -------- Funcții Streamlit --------
+def read_user_assignment(input_str):
+    """
+    Parsează un string de forma 'X0=3,X1=4' într-un dict {X0:3, X1:4}.
+    Returnează None dacă formatul e invalid.
+    """
+    assignment = {}
+    try:
+        parts = input_str.split(',')
+        for p in parts:
+            var_val = p.split('=')
+            if len(var_val) != 2:
+                return None
+            var, val = var_val
+            assignment[var.strip()] = int(val.strip())
+        return assignment
+    except (ValueError, AttributeError, IndexError):
+        return None
+
+
+def read_complete_user_assignment(vars_to_fill, partial_assignment, input_str: str):
+    """
+    Folosește logica originală:
+    - verifică duplicat variabile
+    - nu reasignează variabilele cunoscute
+    - trebuie să completeze exact variabilele lipsă
+    Returnează (user_assignment, errors)
+    """
+    errors = []
+    user_assignment = read_user_assignment(input_str)
+
+    if user_assignment is None:
+        errors.append("Format invalid. Folosește exemplul afișat.")
+    else:
+        raw_vars = [p.split('=')[0].strip() for p in input_str.split(',')]
+        if len(raw_vars) != len(set(raw_vars)):
+            errors.append("Aceeași variabilă nu poate fi asignată de două ori.")
+        forbidden = set(user_assignment.keys()) & set(partial_assignment.keys())
+        if forbidden:
+            errors.append(f"Nu poți reasigna variabile deja cunoscute: {list(forbidden)}")
+        if set(user_assignment.keys()) != set(vars_to_fill):
+            errors.append(f"Trebuie să completezi EXACT aceste variabile: {vars_to_fill}")
+
+    return user_assignment, errors
+
+
+# -------- BKT cu optimizări UI (Streamlit) --------
+if mode == "BKT cu optimizari":
+    st.subheader("Algoritm Backtracking cu optimizări")
+
+    # Dropdown pentru strategie
+    optimization = st.selectbox("Alege optimizarea", ["FC", "MRV", "AC-3"], index=2)
+
+    # Funcție callback pentru generarea unei noi instanțe
+    def generate_new_instance():
+        st.session_state["bkt_csp"] = generate_solvable_csp_with_partial()
+        st.session_state["bkt_user_input"] = ""
+        st.session_state["bkt_score"] = None
+        st.session_state["bkt_solution"] = None
+        st.session_state["bkt_correct_count"] = None
+        st.session_state["bkt_total_missing"] = None
+
+    # Buton „Generează altă instanță” înainte de input
+    st.button("Generează altă instanță", on_click=generate_new_instance)
+
+    # Dacă nu există încă CSP în session_state, generăm unul
+    if "bkt_csp" not in st.session_state:
+        generate_new_instance()
+
+    variables, domains, constraints, constraint_types, partial_assignment = st.session_state["bkt_csp"]
+
+    # Tabel compact cu variabile, domenii și valori parțiale
+    st.table([{
+        "Variabilă": v,
+        "Domeniu": domains[v],
+        "Valoare cunoscută": str(partial_assignment.get(v, ""))  # <- forțăm string
+    } for v in variables])
+
+    # Constrângeri
+    constraints_readable = []
+    seen = set()
+    for var in constraints:
+        for neighbor in constraints[var]:
+            if (var, neighbor) not in seen and (neighbor, var) not in seen:
+                op = constraint_types[(var, neighbor)]
+                constraints_readable.append(f"{var} {op} {neighbor}")
+                seen.add((var, neighbor))
+    st.subheader("Constrângeri")
+    st.text(", ".join(constraints_readable))
+
+    # Variabile de completat
+    vars_to_fill = [v for v in variables if v not in partial_assignment]
+    example = ",".join(f"{v}=1" for v in vars_to_fill)
+
+    st.text_input(f"Introdu valorile pentru {vars_to_fill} (ex: {example})", key="bkt_user_input")
+
+    if st.button("Verifică răspunsul"):
+        user_assignment, errors = read_complete_user_assignment(
+            vars_to_fill, partial_assignment, st.session_state["bkt_user_input"]
+        )
+
+        if errors:
+            for e in errors:
+                st.error(e)
+            st.session_state["bkt_score"] = None
+        else:
+            # Setăm optimizarea
+            use_fc = use_ac3 = False
+            mrv = None
+            if optimization == "FC":
+                use_fc = True
+            elif optimization == "MRV":
+                mrv = "MRV"
+            elif optimization == "AC-3":
+                use_ac3 = True
+
+            # Rezolvăm CSP complet
+            solution = backtrack(
+                copy.deepcopy(partial_assignment),
+                variables,
+                domains,
+                constraints,
+                constraint_types,
+                mrv=mrv,
+                use_fc=use_fc,
+                use_ac3=use_ac3
+            )
+
+            # Calcul scor procentual
+            correct_count = sum(1 for v in vars_to_fill if user_assignment.get(v) == solution.get(v))
+            total_missing = len(vars_to_fill)
+            score_percent = (correct_count / total_missing) * 100 if total_missing > 0 else 100
+
+            # Salvăm scor și soluție în session_state
+            st.session_state["bkt_score"] = score_percent
+            st.session_state["bkt_solution"] = solution
+            st.session_state["bkt_correct_count"] = correct_count
+            st.session_state["bkt_total_missing"] = total_missing
+
+    # Afișăm scorul și soluția dacă există
+    if st.session_state.get("bkt_score") is not None:
+        st.metric(
+            "Scorul tău",
+            f"{st.session_state['bkt_score']:.2f}% "
+            f"({st.session_state['bkt_correct_count']}/{st.session_state['bkt_total_missing']} corect)"
+        )
+        st.subheader("Soluție completă")
+        st.table([{
+            "Variabilă": v,
+            "Valoare": st.session_state["bkt_solution"][v]
+        } for v in variables])

@@ -4,5 +4,6 @@
   "Pentru instanța curentă a problemei {problem_name}, care algoritm de căutare ar oferi o soluție optimă?",
   "Având în vedere problema {problem_name}, ce strategie din cele studiate alegeți pentru rezolvare și de ce?",
   "Pentru arborele dat, care este valoarea de la rădăcină și câte noduri frunză vor fi evaluate aplicând MinMax cu Alpha-Beta?",
-  "Pentru jocul dat în forma normală (în matricea atașată), există echilibru Nash pur? Care este acesta?"
+  "Pentru jocul dat în forma normală (în matricea atașată), există echilibru Nash pur? Care este acesta?",
+  "Care va fi asignarea variabilelor rămase date fiind variabilele, domeniile, constrângerile și asignarea parțială, dacă am utiliza algoritmul Backtracking cu optimizarea {optimization} pentru continuarea rezolvării?"
 ]

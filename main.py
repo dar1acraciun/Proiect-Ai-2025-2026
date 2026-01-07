@@ -1,4 +1,5 @@
 from utils.io_utils import generate_question
+from utils.io_utils import OPTIMIZATIONS
 from utils.display import *
 from utils.problem_factory import create_problem_instance
 from utils.prefill import handle_prefill_editing, show_prefill_preview
@@ -7,8 +8,8 @@ from problems.minimax_quiz import run_minimax_quiz
 import algorithms.uninformed as uninformed
 import algorithms.informed as informed
 from problems.nash_quiz import run_nash_quiz
-
-
+from problems.csp import *
+import copy
 
 
 ALGO_FUNCS = {
@@ -42,7 +43,28 @@ def main():
     if problem_name == "Nash":
         run_nash_quiz()
         return
-    
+
+    if problem_name in OPTIMIZATIONS:
+        variables, domains, constraints, constraint_types, partial_assignment = generate_solvable_csp_with_partial()
+        print_constraints_readable(variables, domains, constraints, constraint_types, partial_assignment)
+
+        strategy = None
+        use_fc = use_ac3 = False
+        if problem_name == 'FC':
+            use_fc = True
+        elif problem_name == 'MRV':
+            strategy = "MRV"
+        elif problem_name == 'AC-3':
+            use_ac3 = True
+
+        vars_to_fill = [v for v in variables if v not in partial_assignment]
+        user_assignment = read_complete_user_assignment(vars_to_fill, partial_assignment, read_user_assignment)
+        solution = backtrack(copy.deepcopy(partial_assignment), variables, domains, constraints, constraint_types,
+                             mrv=strategy, use_fc=use_fc, use_ac3=use_ac3)
+
+        benchmark_csp(solution, vars_to_fill, user_assignment)
+        return
+
     choice = input("Generare instanță: [1] goală  [2] aproape completă validă (1/2) [1]: ").strip() or "1"
     
     if choice == "2":
