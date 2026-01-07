@@ -492,31 +492,8 @@ if mode == "BKT cu optimizari":
                 st.error(e)
             st.session_state["bkt_score"] = None
         else:
-            # Combinăm asignarea parțială cu răspunsul utilizatorului
-            complete_user_assignment = {**partial_assignment, **user_assignment}
-            
-            # Validăm dacă răspunsul utilizatorului respectă TOATE constrângerile
-            def validate_assignment(assignment, variables, constraints, constraint_types):
-                """Verifică dacă o asignare completă respectă toate constrângerile."""
-                for var in variables:
-                    for neighbor in constraints[var]:
-                        if neighbor in assignment:
-                            op = constraint_types[(var, neighbor)]
-                            op_str = '==' if op == '=' else op
-                            if not eval(f"{assignment[var]} {op_str} {assignment[neighbor]}"):
-                                return False
-                return True
-            
-            is_valid = validate_assignment(complete_user_assignment, variables, constraints, constraint_types)
-            
-            if not is_valid:
-                st.error("Răspunsul nu respectă constrângerile!")
-                st.session_state["bkt_score"] = 0.0
-                st.session_state["bkt_solution"] = complete_user_assignment
-                st.session_state["bkt_correct_count"] = 0
-                st.session_state["bkt_total_missing"] = len(vars_to_fill)
-            else:
-                # Setăm optimizarea (doar pentru informație, soluția e deja validă)
+
+                 # Setăm optimizarea (doar pentru informație, soluția e deja validă)
                 use_fc = use_ac3 = False
                 mrv = None
                 if optimization == "FC":
@@ -549,20 +526,20 @@ if mode == "BKT cu optimizari":
                     # Găsim cea mai bună potrivire comparând cu fiecare soluție
                     best_solution = None
                     best_correct_count = -1
-                    
+
                     for sol in all_solutions:
                         correct_count = sum(1 for v in vars_to_fill if user_assignment.get(v) == sol.get(v))
                         if correct_count > best_correct_count:
                             best_correct_count = correct_count
                             best_solution = sol
-                    
+
                     if best_correct_count == len(vars_to_fill):
                         # Răspunsul se potrivește perfect cu o soluție
                         score = 100.0
                     else:
                         # Scor parțial: procentul de variabile corecte cu cea mai bună soluție
                         score = (best_correct_count / len(vars_to_fill)) * 100 if len(vars_to_fill) > 0 else 100.0
-                    
+
                     st.session_state["bkt_score"] = score
                     st.session_state["bkt_solution"] = best_solution
                     st.session_state["bkt_correct_count"] = best_correct_count
@@ -576,8 +553,13 @@ if mode == "BKT cu optimizari":
             f"{st.session_state['bkt_score']:.2f}% "
             f"({st.session_state['bkt_correct_count']}/{st.session_state['bkt_total_missing']} corect)"
         )
-        st.subheader("Soluție completă")
-        st.table([{
-            "Variabilă": v,
-            "Valoare": st.session_state["bkt_solution"][v]
-        } for v in variables])
+
+        if st.session_state.get("bkt_solution") is not None:
+            st.subheader("Soluție completă (aleasă de BKT)")
+            st.table([{
+                "Variabilă": v,
+                "Valoare": st.session_state["bkt_solution"][v]
+            } for v in variables])
+        else:
+            st.info("Nu există o soluție BKT validă de afișat.")
+
