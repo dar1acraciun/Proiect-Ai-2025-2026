@@ -127,6 +127,44 @@ def backtrack(assignment, variables, domains, constraints, constraint_types, mrv
     return None
 
 
+def backtrack_all_solutions(assignment, variables, domains, constraints, constraint_types, mrv=None, use_fc=False, use_ac3=False, solutions=None):
+    """Găsește TOATE soluțiile pentru CSP-ul dat."""
+    if solutions is None:
+        solutions = []
+    
+    if len(assignment) == len(variables):
+        solutions.append(copy.deepcopy(assignment))
+        return solutions
+
+    var = select_unassigned_variable(variables, assignment, domains, mrv)
+    if var is None:
+        solutions.append(copy.deepcopy(assignment))
+        return solutions
+
+    for value in domains[var]:
+        if is_consistent(var, value, assignment, constraints, constraint_types):
+            assignment[var] = value
+            # Copiem domains pentru a evita modificări în-place
+            temp_domains = copy.deepcopy(domains)
+
+            if use_fc:
+                temp_domains = forward_checking(var, value, domains, constraints, constraint_types, assignment)
+                if temp_domains is None:
+                    del assignment[var]
+                    continue
+            elif use_ac3:
+                temp_domains = copy.deepcopy(domains)
+                temp_domains[var] = [value]
+                if not ac3(temp_domains, constraints, constraint_types):
+                    del assignment[var]
+                    continue
+
+            backtrack_all_solutions(assignment, variables, temp_domains, constraints, constraint_types, mrv, use_fc, use_ac3, solutions)
+            del assignment[var]
+    
+    return solutions
+
+
 def print_constraints_readable(variables, domains, constraints, constraint_types, partial_assignment):
     print("Variabile:", variables)
     print("Domenii:", domains)

@@ -118,6 +118,11 @@ with st.sidebar:
             cols_n = st.number_input("Coloane", min_value=3, max_value=5, value=4, step=1)
             payoff_min, payoff_max, prob_nash = -10, 10, 0.3
         gen_nash_btn = st.button("Generează joc")
+    elif mode == "BKT cu optimizari":
+        st.subheader("Parametri CSP")
+        bkt_size_choice = st.selectbox("Dimensiune problemă", ["Small (4)", "Medium (6)", "Large (8)"], index=1)
+        bkt_optimization = st.selectbox("Alege optimizarea", ["FC", "MRV", "AC-3"], index=2)
+        bkt_generate_btn = st.button("Generează instanță")
 
 
 if "problem" not in st.session_state:
@@ -428,20 +433,23 @@ def read_complete_user_assignment(vars_to_fill, partial_assignment, input_str: s
 if mode == "BKT cu optimizari":
     st.subheader("Algoritm Backtracking cu optimizări")
 
-    # Dropdown pentru strategie
-    optimization = st.selectbox("Alege optimizarea", ["FC", "MRV", "AC-3"], index=2)
+    # Mapare dimensiune la număr de variabile
+    size_map = {"Small (4)": 4, "Medium (6)": 6, "Large (8)": 8}
+    num_vars = size_map[bkt_size_choice]
+    optimization = bkt_optimization
 
     # Funcție callback pentru generarea unei noi instanțe
     def generate_new_instance():
-        st.session_state["bkt_csp"] = generate_solvable_csp_with_partial()
+        st.session_state["bkt_csp"] = generate_solvable_csp_with_partial(num_vars=num_vars)
         st.session_state["bkt_user_input"] = ""
         st.session_state["bkt_score"] = None
         st.session_state["bkt_solution"] = None
         st.session_state["bkt_correct_count"] = None
         st.session_state["bkt_total_missing"] = None
 
-    # Buton „Generează altă instanță” înainte de input
-    st.button("Generează altă instanță", on_click=generate_new_instance)
+    # Procesează butonul din sidebar
+    if bkt_generate_btn:
+        generate_new_instance()
 
     # Dacă nu există încă CSP în session_state, generăm unul
     if "bkt_csp" not in st.session_state:
@@ -484,38 +492,82 @@ if mode == "BKT cu optimizari":
                 st.error(e)
             st.session_state["bkt_score"] = None
         else:
-            # Setăm optimizarea
-            use_fc = use_ac3 = False
-            mrv = None
-            if optimization == "FC":
-                use_fc = True
-            elif optimization == "MRV":
-                mrv = "MRV"
-            elif optimization == "AC-3":
-                use_ac3 = True
+            # Combinăm asignarea parțială cu răspunsul utilizatorului
+            complete_user_assignment = {**partial_assignment, **user_assignment}
+            
+            # Validăm dacă răspunsul utilizatorului respectă TOATE constrângerile
+            def validate_assignment(assignment, variables, constraints, constraint_types):
+                """Verifică dacă o asignare completă respectă toate constrângerile."""
+                for var in variables:
+                    for neighbor in constraints[var]:
+                        if neighbor in assignment:
+                            op = constraint_types[(var, neighbor)]
+                            op_str = '==' if op == '=' else op
+                            if not eval(f"{assignment[var]} {op_str} {assignment[neighbor]}"):
+                                return False
+                return True
+            
+            is_valid = validate_assignment(complete_user_assignment, variables, constraints, constraint_types)
+            
+            if not is_valid:
+                st.error("Răspunsul nu respectă constrângerile!")
+                st.session_state["bkt_score"] = 0.0
+                st.session_state["bkt_solution"] = complete_user_assignment
+                st.session_state["bkt_correct_count"] = 0
+                st.session_state["bkt_total_missing"] = len(vars_to_fill)
+            else:
+                # Setăm optimizarea (doar pentru informație, soluția e deja validă)
+                use_fc = use_ac3 = False
+                mrv = None
+                if optimization == "FC":
+                    use_fc = True
+                elif optimization == "MRV":
+                    mrv = "MRV"
+                elif optimization == "AC-3":
+                    use_ac3 = True
 
-            # Rezolvăm CSP complet
-            solution = backtrack(
-                copy.deepcopy(partial_assignment),
-                variables,
-                domains,
-                constraints,
-                constraint_types,
-                mrv=mrv,
-                use_fc=use_fc,
-                use_ac3=use_ac3
-            )
+                # Găsim TOATE soluțiile posibile cu optimizarea selectată
+                all_solutions = backtrack_all_solutions(
+                    copy.deepcopy(partial_assignment),
+                    variables,
+                    copy.deepcopy(domains),
+                    constraints,
+                    constraint_types,
+                    mrv=mrv,
+                    use_fc=use_fc,
+                    use_ac3=use_ac3
+                )
 
-            # Calcul scor procentual
-            correct_count = sum(1 for v in vars_to_fill if user_assignment.get(v) == solution.get(v))
-            total_missing = len(vars_to_fill)
-            score_percent = (correct_count / total_missing) * 100 if total_missing > 0 else 100
-
-            # Salvăm scor și soluție în session_state
-            st.session_state["bkt_score"] = score_percent
-            st.session_state["bkt_solution"] = solution
-            st.session_state["bkt_correct_count"] = correct_count
-            st.session_state["bkt_total_missing"] = total_missing
+                # Scorarea: compară cu cea mai apropiată soluție din toate soluțiile
+                if not all_solutions:
+                    # Nu s-a găsit nicio soluție (neașteptat dacă inputul e valid)
+                    st.session_state["bkt_score"] = 0.0
+                    st.session_state["bkt_solution"] = None
+                    st.session_state["bkt_correct_count"] = 0
+                    st.session_state["bkt_total_missing"] = len(vars_to_fill)
+                else:
+                    # Găsim cea mai bună potrivire comparând cu fiecare soluție
+                    best_solution = None
+                    best_correct_count = -1
+                    
+                    for sol in all_solutions:
+                        correct_count = sum(1 for v in vars_to_fill if user_assignment.get(v) == sol.get(v))
+                        if correct_count > best_correct_count:
+                            best_correct_count = correct_count
+                            best_solution = sol
+                    
+                    if best_correct_count == len(vars_to_fill):
+                        # Răspunsul se potrivește perfect cu o soluție
+                        score = 100.0
+                    else:
+                        # Scor parțial: procentul de variabile corecte cu cea mai bună soluție
+                        score = (best_correct_count / len(vars_to_fill)) * 100 if len(vars_to_fill) > 0 else 100.0
+                    
+                    st.session_state["bkt_score"] = score
+                    st.session_state["bkt_solution"] = best_solution
+                    st.session_state["bkt_correct_count"] = best_correct_count
+                    st.session_state["bkt_total_missing"] = len(vars_to_fill)
+                    st.session_state["bkt_all_solutions"] = all_solutions
 
     # Afișăm scorul și soluția dacă există
     if st.session_state.get("bkt_score") is not None:
