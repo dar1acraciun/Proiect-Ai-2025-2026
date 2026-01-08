@@ -18,6 +18,3 @@ streamlit run app.py
 
 3. In the sidebar, choose a problem and parameters, set prefill level, then generate an instance. Run the benchmark and select your algorithm guess to see your score.
 
-## Notes
-- Minimax/Nash quiz flows from the CLI are not yet ported.
-- Graphs for Graph Coloring are generated heuristically across color classes and may produce fewer edges than requested.
