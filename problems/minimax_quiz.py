@@ -75,7 +75,6 @@ def _calculate_minimax_score(user_root: int, user_leaves: int, correct_root: int
         if root_correct:
             reasons.append("Valoarea rădăcinii corectă.")
         else:
-            
             score -= root_diff * 25.0
             reasons.append(f"Valoarea rădăcinii: așteptat {correct_root}, tu ai răspuns {user_root} (diferență: {root_diff}).")
         
